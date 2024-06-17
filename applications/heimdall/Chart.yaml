@@ -1,0 +1,5 @@
+apiVersion: v2
+name: heimdall
+version: 1.0.0
+description: An Heimdall deployment.
+appVersion: 2.6.1

@@ -1,0 +1,48 @@
+---
+- name: Install microk8s
+  become: true
+  snap:
+    name: microk8s
+    channel: 1.25/stable
+    classic: yes
+  tags:
+  - deploy-microk8s
+
+- name: Set up storage directory
+  become: true
+  file:
+    path: /var/snap/microk8s/common/storage
+    state: directory
+  tags:
+  - deploy-microk8s
+
+- name: Mount data drive to storage directory
+  become: true
+  ansible.posix.mount:
+    path: /var/snap/microk8s/common/storage
+    src: "{{ microk8s_storage.source }}"
+    fstype: "{{ microk8s_storage.fstype }}"
+    state: mounted
+  when: microk8s_storage.source
+  tags:
+  - deploy-microk8s
+
+- name: Enable Microk8s dns plugin
+  become: true
+  shell:
+    cmd: microk8s enable dns
+  tags:
+  - deploy-microk8s
+
+- name: Wait for 30 seconds
+  wait_for:
+    timeout: 30
+  tags:
+  - delay
+  - deploy-microk8s
+
+- name: Set k8s config
+  shell:
+    cmd: microk8s config > ~/.kube/config
+  tags:
+  - deploy-microk8s

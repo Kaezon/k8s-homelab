@@ -1,0 +1,103 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: harbor
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: core-deployment
+  source:
+    repoURL: https://helm.goharbor.io
+    targetRevision: 1.14.0
+    chart: harbor
+
+    helm:
+      values: |
+        expose:
+          type: ingress
+          tls:
+            enabled: true
+            certSource: secret
+            secret:
+              secretName: harbor-tls
+              notarySecretName: notary-tls
+          ingress:
+            hosts:
+              core: harbor.k8s.chimera
+              notary: notary.harbor.k8s.chimera
+            className: nginx
+            annotations:
+              cert-manager.io/cluster-issuer: private-ica
+            notary:
+              annotations:
+                cert-manager.io/common-name: harbor-notary-tls
+            harbor:
+              annotation:
+                cert-manager.io/common-name: harbor-core-tls
+
+        externalURL: https://harbor.k8s.chimera
+
+        internalTLS:
+          enabled: false
+
+        ipFamily:
+          ipv6:
+            enabled: false
+
+        persistence:
+          enabled: true
+          persistentVolumeClaim:
+            registry:
+              storageClass: longhorn-crypto-global
+            chartmuseum:
+              storageClass: longhorn-crypto-global
+            jobservice:
+              jobLog:
+                storageClass: longhorn-crypto-global
+            database:
+              storageClass: longhorn-crypto-global
+            redis:
+              storageClass: longhorn-crypto-global
+            trivy:
+              storageClass: longhorn-crypto-global
+
+        logLevel: info
+
+        caSecretName: ""
+        caBundleSecretName: ca-bundle
+        harborAdminPassword: "eyGBd7gt"
+        secretKey: "6JVciYnjwEFoSdAR"
+
+        metrics:
+          enabled: true
+
+        trace:
+          enabled: false
+      valueFiles:
+      - values.yaml
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ .Values.projectNamespace }}
+  
+  ignoreDifferences:
+  - group: apps
+    kind: Deployment
+    jqPathExpressions:
+    - '.spec.template.metadata.annotations."checksum/configmap"'
+    - '.spec.template.metadata.annotations."checksum/configmap-env"'
+    - '.spec.template.metadata.annotations."checksum/secret"'
+    - '.spec.template.metadata.annotations."checksum/secret-core"'
+    - '.spec.template.metadata.annotations."checksum/secret-jobservice"'
+    
+
+  syncPolicy:
+    retry:
+      limit: 1
+      backoff:
+        duration: 5m
+        factor: 2
+        maxDuration: 30m
+    syncOptions:
+    - CreateNamespace=true

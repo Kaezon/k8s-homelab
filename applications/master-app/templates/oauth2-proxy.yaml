@@ -1,0 +1,114 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: oauth2-proxy
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: core-deployment
+  source:
+    repoURL: https://oauth2-proxy.github.io/manifests
+    targetRevision: 7.1.0
+    chart: oauth2-proxy
+
+    helm:
+      values: |
+        config:
+          clientID: "oauth2-proxy"
+          clientSecret: "{{ .Values.oauth2Proxy.clientSecret }}"
+          cookieSecret: "{{ .Values.oauth2Proxy.cookieSecret }}"
+          cookieName: "chimeranet-oauth"
+          configFile: |-
+            http_address = "127.0.0.1:4180"
+            reverse_proxy = true
+            redirect_url = "https://auth.{{ .Values.domain }}/oauth2/callback"
+
+        extraVolumes:
+          - name: ca-bundle-cert
+            secret:
+              secretName: ca-bundle
+
+        extraVolumeMounts:
+          - mountPath: /etc/ssl/certs/
+            name: ca-bundle-cert
+
+        extraArgs:
+          cookie-refresh: '5m'
+          cookie-expire: '24h'
+          cookie-domain: .k8s.chimera
+          email-domain: '*'
+          provider: keycloak-oidc
+          oidc-issuer-url: https://keycloak.{{ .Values.domain }}/realms/{{ .Values.oauth2Proxy.keycloakRealmName }}
+          #scope: openid profile email groups 
+          skip-provider-button: 'true'
+          force-https: 'false'
+          cookie-secure: 'false'
+          pass-access-token: 'true'
+          pass-authorization-header: 'true'
+          pass-basic-auth: 'false'
+          pass-user-headers: 'true'
+          set-xauthrequest: 'true'
+          skip-jwt-bearer-tokens: 'true'
+          whitelist-domain: .{{ .Values.domain }}
+
+        ingress:
+          enabled: true
+          className: nginx
+          pathType: Prefix
+          path: /oauth2
+          hosts:
+          - auth.{{ .Values.domain }}
+          annotations:
+            cert-manager.io/cluster-issuer: private-ica
+            cert-manager.io/common-name: oauth2-proxy-tls
+          tls:
+          - secretName: oauth2-proxy-tls
+            hosts:
+            - auth.{{ .Values.domain }}
+
+        podDisruptionBudget:
+          enabled: false
+
+        redis:
+          enabled: true
+          architecture: standalone
+          global:
+            storageClass: longhorn-crypto-global
+
+        securityContext:
+          enabled: true
+
+        sessionStorage:
+          type: redis
+
+        metrics:
+          enabled: true
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ .Values.projectNamespace }}
+
+  ignoreDifferences:
+    - group: "*"
+      kind: Secret
+      name: oauth2-proxy-redis
+      namespace: core-deployment
+      jsonPointers:
+      - /data/redis-password
+    - group: "*"
+      kind: StatefulSet
+      name: oauth2-proxy-redis-master
+      namespace: core-deployment
+      jsonPointers:
+      - /spec/template/metadata/annotations/checksum~1secret  # '~1' is an escaped '/'
+
+  syncPolicy:
+    retry:
+      limit: 1
+      backoff:
+        duration: 5m
+        factor: 2
+        maxDuration: 30m
+    syncOptions:
+    - CreateNamespace=true

@@ -1,0 +1,21 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argocd-ingress
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - argocd.k8s.chimera
+    secretName: argocd-tls
+  rules:
+  - host: argocd.k8s.chimera
+    http:
+      paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: argocd-server
+              port:
+                number: 80

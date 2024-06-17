@@ -1,0 +1,20 @@
+---
+- name: Include common tasks
+  include_tasks: common.yaml
+  tags:
+  - always
+
+- name: Include deploy-microk8s tasks
+  include_tasks: deploy-microk8s.yaml
+  tags:
+  - deploy-microk8s
+
+- name: Include core deployment tasks
+  include_tasks: deploy-core.yaml
+  tags:
+  - core
+
+- name: Push project into local Gitea
+  include_tasks: create-gitea-repo.yaml
+  tags:
+  - git

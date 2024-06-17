@@ -1,0 +1,101 @@
+ca-bundle: ""
+
+kube-prometheus-stack:
+  fullnameOverride: kps
+  global:
+    rbac:
+      pspEnabled: false
+
+  kube-state-metrics:
+    podSecurityPolicy:
+      enabled: false
+
+  alertmanager:
+    enabled: false
+
+  grafana:
+    fullnameOverride: kps
+    assertNoLeakedSecrets: false  # Temp fix: Make sure this is actually secure
+    grafana.ini:
+      server:
+        root_url: https://grafana.k8s.local
+      database:
+        ca_cert_path: /etc/ssl/certs
+      auth.generic_oauth:
+        enabled: true
+        name: "Keycloak"
+        client_id: grafana-client
+        client_secret: grafana-password
+        auth_url: "https://keycloak.k8s.local/realms/chimera/protocol/openid-connect/auth"
+        token_url: "https://keycloak.k8s.local/realms/chimera/protocol/openid-connect/token"
+        api_url: "https://keycloak.k8s.local/realms/chimera/protocol/openid-connect/userinfo"
+        allow_sign_up: true
+        role_attribute_path: "contains(roles[*], 'admin') && 'Admin' || 'Viewer'"
+        email_attribute_path: email
+        name_attribute_path: full_name
+        scopes: "openid email profile offline_access roles"
+    extraSecretMounts:
+    - name: certs-secret
+      mountPath: /etc/ssl/certs
+      secretName: ca-bundle
+      readOnly: true
+    ingress:
+      enabled: true
+      annotations:
+        cert-manager.io/cluster-issuer: private-ica
+        cert-manager.io/common-name: grafana
+      hosts:
+      - grafana.k8s.local
+      ingressClassName: nginx
+      rbac:
+        pspEnabled: false
+      tls:
+      - hosts:
+        - grafana.k8s.local
+        secretName: grafana-tls
+  prometheus:
+    ingress:
+      enabled: true
+      annotations:
+        cert-manager.io/cluster-issuer: private-ica
+        cert-manager.io/common-name: prometheus
+        nginx.ingress.kubernetes.io/auth-url: https://auth.k8s.local/oauth2/auth
+        nginx.ingress.kubernetes.io/auth-signin: https://auth.k8s.local/oauth2/start?rd=$scheme://$host$request_uri$is_args$args
+        nginx.ingress.kubernetes.io/auth-response-headers: "x-auth-request-user, x-auth-request-email, x-auth-request-access-token"
+      hosts:
+      - prometheus.k8s.local
+      ingressClassName: nginx
+      tls:
+      - hosts:
+        - prometheus.k8s.local
+        secretName: prmetheus-tls
+    prometheusSpec:
+      additionalScrapeConfigs:
+      - job_name: prometheus
+        honor_labels: true
+        static_configs:
+        - targets: ["localhost:9090"]
+      podMonitorSelectorNilUsesHelmValues: false
+      podMonitorSelector: {}
+      podMonitorNamespaceSelector: {}
+      probeSelectorNilUsesHelmValues: false
+      probeMonitorSelector: {}
+      probeMonitorNamespaceSelector: {}
+      ruleSelectorNilUsesHelmValues: false
+      ruleMonitorSelector: {}
+      ruleMonitorNamespaceSelector: {}
+      serviceMonitorSelectorNilUsesHelmValues: false
+      serviceMonitorSelector: {}
+      serviceMonitorNamespaceSelector: {}
+      storageSpec:
+        volumeClaimTemplate:
+          spec:
+            storageClassName: longhorn-crypto-global
+            accessModes: ["ReadWriteOnce"]
+            resources:
+              requests:
+                storage: 100Gi
+
+  prometheus-node-exporter:
+    rbac:
+      pspEnabled: false

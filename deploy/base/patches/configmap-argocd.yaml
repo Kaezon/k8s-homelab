@@ -1,0 +1,114 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  labels:
+    app.kubernetes.io/name: argocd-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  url: https://argocd.k8s.local
+  statusbadge.enabled: "true"
+  users.anonymous.enabled: "false"
+
+  # OIDC configuration as an alternative to dex (optional).
+  oidc.config: |
+    name: Keycloak
+    issuer: https://keycloak.k8s.local/auth/realms/myrealm
+    clientID: argocd-client
+    clientSecret: $oidc.keycloak.clientSecret
+    requestedScopes: ["openid", "profile", "email"]
+    requestedIDTokenClaims: {"groups": {"essential": true}}
+
+  resource.customizations.ignoreDifferences.admissionregistration.k8s.io_MutatingWebhookConfiguration: |
+    jsonPointers:
+    - /webhooks/0/clientConfig/caBundle
+    jqPathExpressions:
+    - .webhooks[0].clientConfig.caBundle
+
+  resource.customizations.health.certmanager.k8s.io-Certificate: |
+    hs = {}
+    if obj.status ~= nil then
+      if obj.status.conditions ~= nil then
+        for i, condition in ipairs(obj.status.conditions) do
+          if condition.type == "Ready" and condition.status == "False" then
+            hs.status = "Degraded"
+            hs.message = condition.message
+            return hs
+          end
+          if condition.type == "Ready" and condition.status == "True" then
+            hs.status = "Healthy"
+            hs.message = condition.message
+            return hs
+          end
+        end
+      end
+    end
+    hs.status = "Progressing"
+    hs.message = "Waiting for certificate"
+    return hs
+
+  resource.customizations.health.cert-manager.io_Certificate: |
+    hs = {}
+    if obj.status ~= nil then
+      if obj.status.conditions ~= nil then
+        for i, condition in ipairs(obj.status.conditions) do
+          if condition.type == "Ready" and condition.status == "False" then
+            hs.status = "Degraded"
+            hs.message = condition.message
+            return hs
+          end
+          if condition.type == "Ready" and condition.status == "True" then
+            hs.status = "Healthy"
+            hs.message = condition.message
+            return hs
+          end
+        end
+      end
+    end
+    hs.status = "Progressing"
+    hs.message = "Waiting for certificate"
+    return hs
+
+  # List of Lua Scripts to introduce custom actions
+  resource.customizations.actions.apps_Deployment: |
+    # Lua Script to indicate which custom actions are available on the resource
+    discovery.lua: |
+      actions = {}
+      actions["restart"] = {}
+      return actions
+    definitions:
+      - name: restart
+        # Lua Script to modify the obj
+        action.lua: |
+          local os = require("os")
+          if obj.spec.template.metadata == nil then
+              obj.spec.template.metadata = {}
+          end
+          if obj.spec.template.metadata.annotations == nil then
+              obj.spec.template.metadata.annotations = {}
+          end
+          obj.spec.template.metadata.annotations["kubectl.kubernetes.io/restartedAt"] = os.date("!%Y-%m-%dT%XZ")
+          return obj
+
+  resource.compareoptions: |
+    # if ignoreAggregatedRoles set to true then differences caused by aggregated roles in RBAC resources are ignored.
+    ignoreAggregatedRoles: true
+
+    # disables status field diffing in specified resource types
+    # 'crd' - CustomResourceDefinitions (default)
+    # 'all' - all resources
+    # 'none' - disabled
+    ignoreResourceStatusField: crd
+
+  # The metadata.label key name where Argo CD injects the app name as a tracking label (optional).
+  # Tracking labels are used to determine which resources need to be deleted when pruning.
+  # If omitted, Argo CD injects the app name into the label: 'app.kubernetes.io/instance'
+  application.instanceLabelKey: k8s.local/appname
+
+  # disables admin user. Admin is enabled by default
+  admin.enabled: "true"
+
+  # Application reconciliation timeout is the max amount of time required to discover if a new manifests version got
+  # published to the repository. Reconciliation by timeout is disabled if timeout is set to 0. Three minutes by default.
+  # > Note: argocd-repo-server deployment must be manually restarted after changing the setting.
+  timeout.reconciliation: 180s

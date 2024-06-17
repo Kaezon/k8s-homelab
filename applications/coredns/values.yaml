@@ -1,0 +1,35 @@
+service:
+  externalIP: "10.0.1.11"
+
+rbac:
+  createRole: true
+
+domain: k8s.local
+
+# Optional list of DNS servers to forward public domain queries to.
+# Specified as a list of strings. E.g.
+# publicDnsServers:
+# - "1.1.1.1"
+# - "1.0.0.1"
+publicDnsServers:
+  - "1.1.1.1"
+  - "1.0.0.1"
+
+# ACLs to be added to each section. Specified as a literal string. E.g.
+# acls: |
+#   allow  net 10.0.0.0/24
+acls:
+
+# Additional config files to be placed in /etc/coredns. Specified as
+# a dictionary. E.g.
+# my-file-name : |
+#   file contents
+additionalConfigs:
+
+# Additional zones to be appended to the corefile. Specified as a
+# string. E.g.
+# additionalZones: |
+#   zoneDefinition {
+#     args
+#   }
+additionalZones:

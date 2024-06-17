@@ -1,0 +1,14 @@
+__pycache__
+
+applications/**/charts
+applications/**/Chart.lock
+
+deploy/bootstrap/values-cert-manager.yaml
+deploy/overlays/*
+!deploy/overlays/example
+
+.vault-pass
+vault.yaml
+
+.venv
+.vscode

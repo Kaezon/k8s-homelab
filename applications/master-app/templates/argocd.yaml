@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: core-deployment
+  source:
+    repoURL: "{{ .Values.argocd.overlayRepo }}"
+    targetRevision: "{{ .Values.argocd.targetRevision }}"
+    path: {{ .Values.argocd.kustomizePath }}
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+
+  syncPolicy:
+    retry:
+      limit: 1
+      backoff:
+        duration: 5m
+        factor: 2
+        maxDuration: 30m
+    syncOptions:
+    - CreateNamespace=true

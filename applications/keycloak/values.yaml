@@ -1,0 +1,59 @@
+keycloak:
+  global:
+    storageClass: longhorn-crypto-global
+
+  extraEnvVars:
+  - name: KEYCLOAK_PROXY_ADDRESS_FORWARDING
+    value: "true"
+  - name: KEYCLOAK_FRONTEND_URL
+    value: "https://keycloak.k8s.local"
+
+  auth:
+    createAdminUser: true
+    adminUser: admin
+    adminPassword: changeme
+
+  ingress:
+    enabled: true
+    hostname: keycloak.k8s.local
+    ingressClassName: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: private-ica
+      cert-manager.io/common-name: keycloak
+      nginx.ingress.kubernetes.io/proxy-buffer-size: "16k"
+    tls: true
+    existingSecret: 'keycloak-tls'
+
+  keycloakConfigCli:
+    enabled: true
+    image:
+      tag: 5.5.0-debian-11-r4
+    command:
+      - java
+      - -jar
+      - /opt/bitnami/keycloak-config-cli/keycloak-config-cli.jar
+    args: []
+
+    # The configuration JSON to apply to Keycloak upon startup.
+    # Example realm export: https://github.com/keycloak/keycloak-demo/blob/master/demo-realm.json
+    # Specified as a dictionary of strings. E.g.
+    # configuration:
+    #   my-realm.json: |
+    #     {
+    #       "id": "my-realm"
+    #     }
+    configuration: {}
+
+  postgresql:
+    postgresqlUsername: keycloak
+    postgresqlPassword: changeme
+    postgresqlDatabase: keycloak
+
+  service:
+    type: ClusterIP
+
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+      namespace: prometheus

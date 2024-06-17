@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: repo-gitea-private
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  url: https://git.k8s.local/myuser/k8s-control
+  password: mypassword
+  username: myuser
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: repo-prometheus-community
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  url: https://prometheus-community.github.io/helm-charts
+  name: prometheus-community
+  type: helm

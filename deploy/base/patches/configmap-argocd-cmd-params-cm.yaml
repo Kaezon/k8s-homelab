@@ -1,0 +1,43 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
+  labels:
+    app.kubernetes.io/name: argocd-cmd-params-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  # Repo server address. (default "argocd-repo-server:8081")
+  repo.server: "argocd-repo-server:8081"
+
+  # Redis server hostname and port (e.g. argocd-redis:6379)
+  redis.server: "argocd-redis:6379"
+  # Enable compression for data sent to Redis with the required compression algorithm. (default 'gzip')
+  redis.compression: gzip
+  # Redis database
+  redis.db: argocd
+
+  # List of additional namespaces where applications may be created in and
+  # reconciled from. The namespace where Argo CD is installed to will always
+  # be allowed.
+  #
+  # Feature state: Beta
+  application.namespaces: ""
+
+  ## Server properties
+  # Run server without TLS
+  server.insecure: "true"
+  # Disable client authentication
+  server.disable.auth: "false"
+  # Cache expiration for OIDC state (default 3m0s)
+  server.oidc.cache.expiration: "5m0s"
+
+  ## ApplicationSet Controller Properties
+  # A list of glob patterns specifying where to look for ApplicationSet resources. (default is only the ns where the controller is installed)
+  applicationsetcontroller.namespaces: "argocd"
+  # Path of the self-signed TLS certificate for SCM/PR Gitlab Generator
+  applicationsetcontroller.scm.root.ca.path: ""
+  # A comma separated list of allowed SCM providers (default "" is all SCM providers).
+  # Setting this field is required when using ApplicationSets-in-any-namespace, to prevent users from
+  # sending secrets from `tokenRef`s to disallowed `api` domains.
+  # The url used in the scm generator must exactly match one in the list
+  applicationsetcontroller.allowed.scm.providers: ""

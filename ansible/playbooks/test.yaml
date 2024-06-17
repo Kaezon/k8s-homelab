@@ -1,0 +1,46 @@
+---
+- name: Test
+  hosts: localhost
+  connection: local
+  vars:
+    test: |
+      test:53 {
+        forward . 1.1.1.1
+        log
+      }
+  tasks:
+  - name: Print value
+    debug:
+      var: test
+  - name: Update value
+    set_fact:
+      test: |
+        {{ test | trim }}
+        this is new {
+          Duh
+        }
+  - name: Print value again
+    debug:
+      var: test
+  - name: Get configmap
+    kubernetes.core.k8s_info:
+      name: coredns
+      kind: ConfigMap
+      namespace: kube-system
+    register: coredns_configmap
+  - name: Store manifest
+    set_fact:
+      coredns_configmap_manifest: "{{ coredns_configmap.resources[0] }}"
+  - name: Store new Corefile
+    set_fact:
+      new_corefile: |
+        {{ coredns_configmap_manifest.data.Corefile | trim }}
+        thisisnew:53 {
+          forward . 1.2.3.4
+        }
+  - name: Update manifest
+    set_fact:
+      coredns_configmap_manifest: "{{ coredns_configmap_manifest | combine ({ 'data':{'Corefile':new_corefile} }) }}"
+  - name: Print value again
+    debug:
+      var: coredns_configmap_manifest

@@ -1,0 +1,38 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: metallb
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: core-deployment
+  source:
+    repoURL: "{{ .Values.controlRepo }}"
+    targetRevision: "{{ .Values.targetRevision }}"
+    path: applications/metallb
+
+    helm:
+      values: |-
+        addresses:
+        {{ toYaml .Values.metallb.addresses | indent 8 }}
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: metallb-system
+
+  ignoreDifferences:
+  - group: apiextensions.k8s.io
+    kind: CustomResourceDefinition
+    jqPathExpressions:
+    - '.spec.conversion.webhook.clientConfig.caBundle'
+
+  syncPolicy:
+    retry:
+      limit: 1
+      backoff:
+        duration: 5m
+        factor: 2
+        maxDuration: 30m
+    syncOptions:
+    - CreateNamespace=true

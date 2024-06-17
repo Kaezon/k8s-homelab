@@ -1,0 +1,57 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gitea
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: core-deployment
+  source:
+    repoURL: "{{ .Values.controlRepo }}"
+    targetRevision: "{{ .Values.targetRevision }}"
+    path: applications/gitea
+
+    helm:
+      valueFiles:
+      - values.yaml
+      values: |
+        gitea:
+          ingress:
+            hosts:
+            - host: git.{{ .Values.domain }}
+              paths:
+              - path: /
+                pathType: Prefix
+            tls:
+            - secretName: gitea-tls
+              hosts:
+              - git.{{ .Values.domain }}
+          gitea:
+            admin:
+              username: {{ .Values.gitea.admin.username }}
+              password: {{ .Values.gitea.admin.password }}
+              email: {{ .Values.gitea.admin.email }}
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ .Values.projectNamespace }}
+  
+  ignoreDifferences:
+    - group: "*"
+      kind: Secret
+      name: gitea-postgresql
+      namespace: core-deployment
+      jsonPointers:
+      - /data/postgres-password
+      
+
+  syncPolicy:
+    retry:
+      limit: 1
+      backoff:
+        duration: 5m
+        factor: 2
+        maxDuration: 30m
+    syncOptions:
+    - CreateNamespace=true

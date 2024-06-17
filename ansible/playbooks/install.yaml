@@ -1,0 +1,10 @@
+---
+- name: Install microk8s role locally
+  hosts: localhost
+  connection: local
+
+  tasks:
+  - name: Install role
+    include_role:
+      name: ../roles/homelab
+    tags: always

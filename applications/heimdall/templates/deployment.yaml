@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: heimdall-admin
+  namespace: {{ .Release.Namespace }}
+  labels:
+{{ include "app.labels" . | indent 4 }}
+spec:
+  replicas: 1
+  serviceName: heimdall-service
+  selector:
+    matchLabels:
+{{ include "app.labels" . | indent 6 }}
+  template:
+    metadata:
+      labels:
+{{ include "app.labels" . | indent 8 }}
+    spec:
+      terminationGracePeriodSeconds: 10
+      containers:
+      - name: heimdall
+        image: linuxserver/heimdall:2.6.1
+        env:
+          - name: PUID
+            value: "1000"
+          - name: PGID
+            value: "1000"
+          - name: TZ
+            value: Etc/UTC
+        ports:
+        - name: http
+          containerPort: 80
+        volumeMounts:
+        - name: heimdall-storage
+          mountPath: /config
+  volumeClaimTemplates:
+  - metadata:
+      name: heimdall-storage
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: "longhorn-crypto-global"
+      resources:
+        requests:
+          storage: 10Gi

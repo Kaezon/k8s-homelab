@@ -1,0 +1,57 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: velero
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: core-deployment
+  source:
+    repoURL: https://vmware-tanzu.github.io/helm-charts
+    targetRevision: "6.0.0"
+    chart: velero
+    helm:
+      values: |
+        configuration:
+          backupStorageLocation:
+          - provider: {{ .Values.velero.provider }}
+            bucket: k8s-chimera-velero
+            config:
+              region: us-east-2
+          volumeSnapshotLocation:
+          - name: {{ .Values.velero.provider }}
+            provider: {{ .Values.velero.provider }}
+            config:
+              region: us-east-2
+        initContainers:
+        - name: velero-plugin-for-{{ .Values.velero.provider }}
+          image: velero/velero-plugin-for-{{ .Values.velero.provider }}:v1.4.1
+          volumeMounts:
+          - mountPath: /target
+            name: plugins
+        containerSecurityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+            add: []
+          readOnlyRootFilesystem: true
+        credentials:
+          useSecret: true
+          name: velero-credentials
+          secretContents:
+{{ toYaml .Values.velero.secretContents | indent 12 }}
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: velero
+
+  syncPolicy:
+    retry:
+      limit: 1
+      backoff:
+        duration: 5m
+        factor: 2
+        maxDuration: 30m
+    syncOptions:
+    - CreateNamespace=true

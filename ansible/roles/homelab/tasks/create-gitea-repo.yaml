@@ -1,0 +1,20 @@
+---
+- name: Create Gitea Repo
+  create_gitea_repo:
+    host: https://git.{{ domain }}
+    username: "{{ gitea.username }}"
+    password: "{{ gitea.password }}"
+    repo_name: "{{ gitea.repoName }}"
+  register:
+    new_repo
+  tags:
+  - create-repo
+
+- name: Add new repo as a remote
+  create_git_remote:
+    url: "{{ new_repo.clone_url }}"
+    project_dir: "{{ projectPath }}"
+    name: "{{ gitea.remoteName }}"
+    push: "{{ gitea.pushRemote }}"
+  tags:
+  - add-remote

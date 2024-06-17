@@ -1,0 +1,36 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cert-manager
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: core-deployment
+  source:
+    repoURL: "{{ .Values.controlRepo }}"
+    targetRevision: "{{ .Values.targetRevision }}"
+    path: applications/cert-manager
+
+    helm:
+      values: |
+        cert: |
+{{indent 10 .Values.certificateAuthority.caBundle }}
+        key: |
+{{indent 10 .Values.certificateAuthority.caKey }}
+      valueFiles:
+      - values.yaml
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cert-manager
+
+  syncPolicy:
+    retry:
+      limit: 1
+      backoff:
+        duration: 5m
+        factor: 2
+        maxDuration: 30m
+    syncOptions:
+    - CreateNamespace=true

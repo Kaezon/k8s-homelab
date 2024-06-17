@@ -1,0 +1,14 @@
+cert-manager:
+  fullnameOverride: cert-manager
+  installCRDs: true
+
+cert: |-
+  -----BEGIN CERTIFICATE-----
+  ...
+  -----END CERTIFICATE-----
+
+key: |-
+  -----BEGIN PRIVATE KEY-----
+  ...
+  -----END PRIVATE KEY-----
+

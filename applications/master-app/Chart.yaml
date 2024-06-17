@@ -1,0 +1,4 @@
+apiVersion: v2
+name: master-app-core
+version: 1.0.0
+description: Top-level ArgoCD Application for an air gapped deployment.

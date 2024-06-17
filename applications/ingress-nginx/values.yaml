@@ -1,0 +1,13 @@
+ingress-nginx:
+  controller:
+    enableCustomResources: true
+    enablePreviewPolicies: true
+    enableSnippets: true
+    ingressClassResource:
+      default: true
+      enabled: true
+    service:
+      annotations:
+        metallb.universe.tf/address-pool: default
+      loadBalancerIP: "10.0.1.12"
+    watchIngressWithoutClass: true

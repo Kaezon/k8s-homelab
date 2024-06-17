@@ -1,0 +1,69 @@
+gitea:
+  global:
+    storageClass: longhorn-crypto-global
+
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: private-ica
+      cert-manager.io/common-name: gitea-tls
+    hosts:
+    - host: git.k8s.local
+      paths:
+      - path: /
+        pathType: Prefix
+    tls:
+    - secretName: gitea-tls
+      hosts:
+      - git.k8s.local
+
+  gitea:
+    admin:
+      username: changeme
+      password: changeme
+      email: changeme
+    config:
+      cache:
+        ADAPTER: memory
+      database:
+        DB_TYPE: postgres
+      indexer:
+        ISSUE_INDEXER_TYPE: bleve
+        REPO_INDEXER_ENABLED: true
+      repository:
+        ENABLE_PUSH_CREATE_USER: true
+      server:
+        ENABLE_PPROF: true
+      session:
+        PROVIDER: db
+      queue:
+        TYPE: level
+    metrics:
+      enabled: true
+      serviceMonitor:
+        enabled: true
+
+  persistence:
+    enabled: true
+    size: 10Gi
+    storageClass: longhorn-crypto-global
+
+  postgresql:
+    enabled: true
+    primary:
+      persistence:
+        size: 10Gi
+  
+  postgresql-ha:
+    enabled: false
+
+  redis-cluster:
+    enabled: false
+
+  #oauth:
+  #- name: 'Keycloak'
+  #  provider: 'openidConnect'
+  #  key: 'hello'
+  #  secret: 'world'
+  #  autoDiscoverUrl: 'https://gitea.example.com/.well-known/openid-configuration'

@@ -1,0 +1,5 @@
+---
+- name: Install YQ
+  pip:
+    name: yq
+    extra_args: --user

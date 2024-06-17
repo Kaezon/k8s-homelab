@@ -1,0 +1,76 @@
+controlRepo: https://git.k8s.chimera/kaezon/k8s-control.git
+projectNamespace: core-deployment
+targetRevision: master
+
+# The domain which services will be available under
+domain: k8s.local
+
+argocd:
+  overlayRepo: ~
+  targetRevision: master
+  kustomizePath: deploy/base
+
+certificateAuthority:
+  caBundle: |-
+    -----BEGIN CERTIFICATE-----
+    ...
+    -----END CERTIFICATE-----
+  caKey: |-
+    -----BEGIN PRIVATE KEY-----
+    ...
+    -----END PRIVATE KEY-----
+
+coredns:
+  acls: 
+  additionalZones:
+  additionalConfigs:
+
+gitea:
+  admin:
+    username: changeme
+    password: changeme
+    email: changeme
+
+kubePrometheusStack:
+  enabled: true
+  grafanaClientSecret: changeme
+  additionalScrapeConfigs:
+  - job_name: prometheus
+    honor_labels: true
+    static_configs:
+    - targets: ["localhost:9090"]
+
+keycloak:
+  auth:
+    adminUser: admin
+    adminPassword: changeme
+  keycloakConfigCli:
+    enabled: true
+    existingConfigmap: keycloak-core-config
+  postgresql:
+    postgresPassword: changeme
+    password: changeme
+  ingress:
+    hostname: keycloak.k8s.local
+
+longhorn:
+  aws: {}
+  encryptionPassphrase: "changeme"
+  longhorn:
+    defaultSettings:
+      backupTarget: ""
+      defaultDataPath: ""
+    ingress:
+      host: longhorn.k8s.local
+
+metallb:
+  addresses: []
+
+oauth2Proxy:
+  clientSecret: "changeme"
+  cookieSecret: "changeme"
+  keycloakRealmName: my-realm
+
+velero:
+  provider: "changeme"
+  secretContents: {}

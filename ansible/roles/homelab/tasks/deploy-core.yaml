@@ -1,0 +1,340 @@
+---
+- name: Add Helm Repo
+  kubernetes.core.helm_repository:
+    name: "{{ item.name }}"
+    repo_url: "{{ item.address }}"
+  loop: "{{ helm_repos }}"
+  loop_control:
+    label: "{{ item.address }}"
+
+- name: Check for existing Namespace
+  kubernetes.core.k8s_info:
+    kind: Namespace
+    name: "{{ deployment_namespace_name }}"
+  register:
+    deployment_namespace
+  tags:
+  - always
+  - namespace
+
+- name: Create Deployment Namespace
+  kubernetes.core.k8s:
+    kind: Namespace
+    name: "{{ deployment_namespace_name }}"
+  register:
+    deployment_namespace
+  when: not deployment_namespace.api_found
+  tags:
+  - always
+  - namespace
+
+- name: Deploy MetalLB
+  block:
+  - name: Check for existing deployment
+    kubernetes.core.helm_info:
+      name: metallb
+      release_namespace: metallb-system
+    register: metallb_info
+    tags:
+    - metallb
+
+  - name: Deploy MetalLB base
+    kubernetes.core.helm:
+      name: metallb
+      chart_ref: metallb/metallb
+      chart_version: 0.13.9
+      release_namespace: metallb-system
+      create_namespace: true
+      values: "{{ helm_values.metallb.base }}"
+      wait: true
+    when: metallb_info.status is not defined or metallb_info.status.status != "deployed"
+    tags:
+    - metallb
+
+  - name: Deploy MetalLB custom
+    kubernetes.core.helm:
+      name: metallb
+      chart_ref: "{{ projectPath }}/applications/metallb"
+      release_namespace: metallb-system
+      create_namespace: true
+      values: "{{ helm_values.metallb.custom }}"
+    tags:
+    - metallb
+
+- name: Deploy CoreDNS
+  kubernetes.core.helm:
+    name: coredns
+    chart_ref: "{{ projectPath }}/applications/coredns"
+    release_namespace: "{{ deployment_namespace_name }}"
+    create_namespace: true
+    values:
+      domain: "{{ domain }}"
+      service:
+        externalIP: "{{ coredns.serviceIP }}"
+  tags:
+  - coredns
+
+- name: Patch internal CoreDNS Configmap
+  block:
+  - name: Get current manifest
+    kubernetes.core.k8s_info:
+      name: coredns
+      kind: ConfigMap
+      namespace: kube-system
+    register: coredns_configmap
+    tags:
+    - coredns
+
+  - name: Update manifest
+    kubernetes.core.k8s:
+      state: present
+      definition:
+        apiVersion: v1
+        kind: ConfigMap
+        metadata:
+          name: coredns
+          namespace: kube-system
+        data:
+          Corefile: |
+            {{ coredns_configmap.resources[0].data.Corefile | trim }}
+            {{ domain }}:53 {
+              forward . {{ coredns.serviceIP }}
+            }
+    tags:
+    - coredns
+
+- name: Deploy Ingress-Nginx
+  kubernetes.core.helm:
+    name: ingress-nginx
+    chart_ref: "{{ projectPath }}/applications/ingress-nginx"
+    chart_version: 4.3.0
+    release_namespace: ingress-nginx
+    create_namespace: true
+  tags:
+  - ingress-nginx
+
+- name: Deploy Certificate-Manager
+  block:
+  - name: Check for existing deployment
+    kubernetes.core.helm_info:
+      name: cert-manager
+      release_namespace: cert-manager
+    register: cert_manager_info
+    tags:
+    - cert-manager
+
+  - name: Deploy Certificate-Manager base
+    kubernetes.core.helm:
+      name: cert-manager
+      chart_ref: jetstack/cert-manager
+      chart_version: 1.10.0
+      release_namespace: cert-manager
+      create_namespace: true
+      wait: true
+      values:
+        installCRDs: true
+    when: cert_manager_info.status is not defined or cert_manager_info.status.status != "deployed"
+    tags:
+    - cert-manager
+
+  - name: Deploy Certificate-Manager custom
+    kubernetes.core.helm:
+      name: cert-manager
+      chart_ref: "{{ projectPath }}/applications/cert-manager"
+      release_namespace: cert-manager
+      create_namespace: true
+      values:
+        cert: |-
+          {{ cert_manager.cert }}
+        key: |-
+          {{ cert_manager.key }}
+        cert-manager:
+          installCRDs: true
+    tags:
+    - cert-manager
+
+- name: Deploy Longhorn
+  kubernetes.core.helm:
+    name: longhorn
+    chart_ref: "{{ projectPath }}/applications/longhorn"
+    chart_version: 1.4.1
+    release_namespace: longhorn-system
+    create_namespace: true
+    values:
+      longhorn:
+        ingress:
+          host: longhorn.{{ domain }}
+      metrics:
+        enabled: false
+  tags:
+  - longhorn
+
+- name: Deploy Kube-Prometheus-Stack
+  block:
+  - name: Deploy Kube-Prometheus-Stack
+    kubernetes.core.helm:
+      name: kube-prometheus-stack
+      chart_ref: "{{ projectPath }}/applications/kube-prometheus-stack"
+      release_namespace: prometheus
+      create_namespace: true
+      values:
+        kube-prometheus-stack:
+          fullnameOverride: kps
+          grafana:
+            fullnameOverride: kps
+            grafana.ini:
+              server:
+                root_url: https://grafana.{{ domain }}
+              auth.generic_oauth:
+                auth_url: "https://keycloak.{{ domain }}/realms/{{ keycloak.realmName }}/protocol/openid-connect/auth"
+                token_url: "https://keycloak.{{ domain }}/realms/{{ keycloak.realmName }}/protocol/openid-connect/token"
+                api_url: "https://keycloak.{{ domain }}/realms/{{ keycloak.realmName }}/protocol/openid-connect/userinfo"
+            ingress:
+              hosts:
+              - grafana.{{ domain }}
+              tls:
+              - hosts:
+                - grafana.{{ domain }}
+          prometheus:
+            ingress:
+              annotations:
+                nginx.ingress.kubernetes.io/auth-url: https://auth.{{ domain }}/oauth2/auth
+                nginx.ingress.kubernetes.io/auth-signin: https://auth.{{ domain }}/oauth2/start?rd=$scheme://$host$request_uri$is_args$args
+              hosts:
+              - prometheus.{{ domain }}
+              tls:
+              - hosts:
+                - prometheus.{{ domain }}
+            prometheusSpec:
+              remoteWrite:
+              - url: https://mimir.{{ domain }}/api/v1/push
+        mimir-distributed:
+          fullnameOverride: mimir
+          gateway:
+            ingress:
+              hosts:
+                - host: mimir.{{ domain }}
+                  paths:
+                    - path: /
+                      pathType: Prefix
+              tls:
+              - hosts:
+                - mimir.{{ domain }}
+          minio:
+            fullnameOverride: mimir-minio
+    tags:
+    - prometheus
+
+  - name: Deploy certificate bundle
+    kubernetes.core.k8s:
+      state: present
+      template: ../templates/secret-ca-bundle.yaml.j2
+    vars:
+      namespace: prometheus
+    tags:
+    - prometheus
+
+- name: Deploy Keycloak
+  block:
+  - name: Deploy Keycloak ConfigMap
+    kubernetes.core.k8s:
+      state: present
+      template: ../templates/configmap-keycloak-config.yaml.j2
+    tags:
+    - keycloak
+
+  - name: Deploy Keycloak
+    kubernetes.core.helm:
+      name: keycloak
+      chart_ref: "{{ projectPath }}/applications/keycloak"
+      release_namespace: "{{ deployment_namespace_name }}"
+      create_namespace: true
+      values:
+        keycloak:
+          extraEnvVars:
+          - name: KEYCLOAK_PROXY_ADDRESS_FORWARDING
+            value: "true"
+          - name: KEYCLOAK_FRONTEND_URL
+            value: "https://keycloak.{{ domain }}"
+          ingress:
+            hostname: keycloak.{{ domain }}
+          auth:
+            adminUser: "{{ keycloak.adminUser.name }}"
+            adminPassword: "{{ keycloak.adminUser.password }}"
+          image:
+            tag: "{{ keycloak.imageTag }}"
+          keycloakConfigCli:
+            enabled: true
+            existingConfigmap: keycloak-core-config
+          postgresql:
+            auth:
+              postgresPassword: "{{ keycloak.postgresql.postgresPassword }}"
+              password: "{{ keycloak.postgresql.keycloakPassword }}"
+    tags:
+    - keycloak
+
+- name: Deploy Gitea
+  kubernetes.core.helm:
+    name: gitea
+    chart_ref: gitea-charts/gitea
+    chart_version: 10.0.0
+    release_namespace: "{{ deployment_namespace_name }}"
+    create_namespace: true
+    values:
+      global:
+        storageClass: longhorn-crypto-global
+      ingress:
+        enabled: true
+        className: nginx
+        annotations:
+          cert-manager.io/cluster-issuer: private-ica
+          cert-manager.io/common-name: gitea-tls
+        hosts:
+        - host: "git.{{ domain }}"
+          paths:
+          - path: /
+            pathType: Prefix
+        tls:
+        - secretName: gitea-tls
+          hosts:
+          - "git.{{ domain }}"
+      gitea:
+        admin:
+          username: "{{ gitea.username }}"
+          password: "{{ gitea.password }}"
+          email: "{{ gitea.email }}"
+        config:
+          cache:
+            ADAPTER: memory
+          database:
+            DB_TYPE: postgres
+          indexer:
+            ISSUE_INDEXER_TYPE: bleve
+            REPO_INDEXER_ENABLED: true
+          repository:
+            ENABLE_PUSH_CREATE_USER: true
+          server:
+            ENABLE_PPROF: true
+          session:
+            PROVIDER: db
+          queue:
+            TYPE: level
+        metrics:
+          enabled: true
+          serviceMonitor:
+            enabled: true
+      persistence:
+        enabled: true
+        size: 10Gi
+        storageClass: longhorn-crypto-global
+      postgresql:
+        enabled: true
+        primary:
+          persistence:
+            size: 10Gi
+      postgresql-ha:
+        enabled: false
+      redis-cluster:
+        enabled: false       
+  tags:
+  - gitea

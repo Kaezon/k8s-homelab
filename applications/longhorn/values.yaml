@@ -1,0 +1,58 @@
+metrics:
+  enabled: true
+
+encryptionPassphrase: changeme
+
+# If you plan on using S3 for backups
+aws: {}
+# aws:
+#   accessKeyID: xxxxxxxxx
+#   secretAccessKey: xxxxxxxxx
+
+longhorn:
+  csi:
+    # kubeletRootDir wille be different depending on what kind of k8s
+    # deployment is being used. In this case, the default is microk8s'
+    # kubelet root path.
+    kubeletRootDir: /var/snap/microk8s/common/var/lib/kubelet
+    attacherReplicaCount: 1
+    provisionerReplicaCount: 1
+    resizerReplicaCount: 1
+    snapshotterReplicaCount: 1
+
+  defaultSettings:
+    backupTarget: ""
+    backupTargetCredentialSecret: longhorn-s3-credentials
+    defaultReplicaCount: 1
+
+    # defaultDataPath is the location at which the volume data is
+    # written. In this case, a lucation inside of microk8s' snap
+    # directory to which I mount a volume.
+    defaultDataPath: /var/snap/microk8s/common/storage/k8s/longhorn
+
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    host: longhorn.k8s.local
+    tls: true
+    tlsSecret: longhorn-tls
+    annotations:
+      cert-manager.io/cluster-issuer: private-ica
+      cert-manager.io/common-name: longhorn-tls
+      #nginx.ingress.kubernetes.io/auth-url: https://auth.k8s.local/oauth2/auth
+      #nginx.ingress.kubernetes.io/auth-signin: https://auth.k8s.local/oauth2/start?rd=$scheme://$host$request_uri$is_args$args
+      #nginx.ingress.kubernetes.io/auth-response-headers: "x-auth-request-user, x-auth-request-email, x-auth-request-access-token"
+
+  longhornAdmissionWebhook:
+    replicas: 1
+  longhornConversionWebhook:
+    replicas: 1
+  longhornRecoveryBackend:
+    replicas: 1
+  longhornUI:
+    replicas: 1
+
+  persistence:
+    defaultClassReplicaCount: 1
+
+  enablePSP: false

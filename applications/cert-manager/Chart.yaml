@@ -1,0 +1,9 @@
+apiVersion: v2
+name: cert-manager
+version: 1.0.0
+description: A coredns deployment.
+appVersion: 1.14.4
+dependencies:
+  - name: cert-manager
+    version: 1.14.4
+    repository: https://charts.jetstack.io

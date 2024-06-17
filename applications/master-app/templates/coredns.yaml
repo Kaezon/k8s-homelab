@@ -1,0 +1,45 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: coredns
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: core-deployment
+  source:
+    repoURL: "{{ .Values.controlRepo }}"
+    targetRevision: "{{ .Values.targetRevision }}"
+    path: applications/coredns
+
+    helm:
+      values: |
+        domain: {{ .Values.domain }}
+{{- if .Values.coredns.acls }}
+        acls: |
+{{ .Values.coredns.acls | indent 10 }}
+{{ end }}
+{{- if .Values.coredns.additionalZones }}
+        additionalZones: |
+{{ .Values.coredns.additionalZones | indent 10 }}
+{{ end }}
+{{- if .Values.coredns.additionalConfigs }}
+        additionalConfigs:
+{{ toYaml .Values.coredns.additionalConfigs | indent 10 }}
+{{ end }}
+      valueFiles:
+      - values.yaml
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ .Values.projectNamespace }}
+
+  syncPolicy:
+    retry:
+      limit: 1
+      backoff:
+        duration: 5m
+        factor: 2
+        maxDuration: 30m
+    syncOptions:
+    - CreateNamespace=true

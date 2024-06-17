@@ -1,0 +1,84 @@
+{{- if .Values.kubePrometheusStack.enabled -}}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-prometheus-stack
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: core-deployment
+  source:
+    repoURL: "{{ .Values.controlRepo }}"
+    targetRevision: "{{ .Values.targetRevision }}"
+    path: applications/kube-prometheus-stack
+
+    helm:
+      values: |
+        kube-prometheus-stack:
+          grafana:
+            fullnameOverride: kps
+            grafana.ini:
+              server:
+                root_url: https://grafana.{{ .Values.domain }}
+              auth.generic_oauth:
+                client_secret: {{ .Values.kubePrometheusStack.grafanaClientSecret }}
+                auth_url: "https://keycloak.{{ .Values.domain }}/realms/chimera/protocol/openid-connect/auth"
+                token_url: "https://keycloak.{{ .Values.domain }}/realms/chimera/protocol/openid-connect/token"
+                api_url: "https://keycloak.{{ .Values.domain }}/realms/chimera/protocol/openid-connect/userinfo"
+            ingress:
+              hosts:
+              - grafana.{{ .Values.domain }}
+              tls:
+              - hosts:
+                - grafana.{{ .Values.domain }}
+                secretName: grafana-tls
+          
+          prometheus:
+            ingress:
+              annotations:
+                nginx.ingress.kubernetes.io/auth-url: https://auth.{{ .Values.domain }}/oauth2/auth
+                nginx.ingress.kubernetes.io/auth-signin: https://auth.{{ .Values.domain }}/oauth2/start?rd=$scheme://$host$request_uri$is_args$args
+              hosts:
+              - prometheus.{{ .Values.domain }}
+              tls:
+              - hosts:
+                - prometheus.{{ .Values.domain }}
+                secretName: prometheus-tls
+            prometheusSpec:
+              additionalScrapeConfigs:
+              {{- toYaml .Values.kubePrometheusStack.additionalScrapeConfigs | nindent 14 }}
+              retention: 90d
+              storage:
+                volumeClaimTemplate:
+                  spec:
+                    storageClassName: longhorn-crypto-global
+                    resources:
+                      requests:
+                        storage: 100Gi
+      valueFiles:
+      - values.yaml
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: prometheus
+  
+  ignoreDifferences:
+  - group: apps
+    kind: Deployment
+    jqPathExpressions:
+    - '.spec.template.metadata.annotations."checksum/config"'
+    - '.spec.template.metadata.annotations."checksum/dashboards-json-config"'
+    - '.spec.template.metadata.annotations."checksum/sc-dashboard-provider-config"'
+    - '.spec.template.metadata.annotations."checksum/secret"'
+
+  syncPolicy:
+    retry:
+      limit: 1
+      backoff:
+        duration: 5m
+        factor: 2
+        maxDuration: 30m
+    syncOptions:
+    - CreateNamespace=true
+{{- end -}}

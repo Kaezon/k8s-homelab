@@ -1,0 +1,17 @@
+# The address ranges that will be given to the default IpAddressPool
+# Specified as a list of strings. E.g.
+# addresses:
+# - 10.0.0.100-10.0.0.150
+addresses: []
+
+metallb:
+  prometheus:
+    namespace: prometheus
+  podMonitor:
+    enabled: true
+  serviceMonitor:
+    enabled: true
+  prometheusRule:
+    enabled: false
+  psp:
+    create: false

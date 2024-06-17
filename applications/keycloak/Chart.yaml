@@ -1,0 +1,9 @@
+apiVersion: v2
+name: keycloak
+version: 1.0.0
+description: A keycloak deployment.
+appVersion: 23.0.7
+dependencies:
+- name: keycloak
+  version: 19.3.3
+  repository: https://charts.bitnami.com/bitnami

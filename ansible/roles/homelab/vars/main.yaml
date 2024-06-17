@@ -1,0 +1,79 @@
+---
+domain: k8s.local
+deployment_namespace_name: core-deployment
+
+projectPath: /path/to/k8s-core-deployment
+
+gitea:
+  username: ~
+  password: ~
+  email: ~
+  repoName: k8s-control
+  remoteName: homelab
+  pushRemote: True
+
+cert_manager:
+  cert: ~
+  key: ~
+
+coredns:
+  serviceIP: ~
+
+microk8s_storage:
+  source: ~
+  fstype: ~
+
+keycloak:
+  imageTag: 20.0.1-debian-11-r9
+  realmDump: ~
+  realmName: ~
+  adminUser:
+  ⦙  name: ~
+  ⦙  password: ~
+  postgresql:
+  ⦙  postgresPassword: ~
+  ⦙  keycloakPassword: ~
+
+helm_repos:
+  - name: metallb
+    address: https://metallb.github.io/metallb
+  - name: coredns
+    address: https://coredns.github.io/helm
+  - name: ingress-nginx
+    address: https://kubernetes.github.io/ingress-nginx
+  - name: bitnami
+    address: https://charts.bitnami.com/bitnami
+  - name: gitea-charts
+    address: https://dl.gitea.io/charts/
+  - name: longhorn
+    address: https://charts.longhorn.io
+  - name: grafana
+    address: https://grafana.github.io/helm-charts
+
+helm_values:
+  metallb:
+    base:
+      prometheus:
+        namespace: prometheus
+      podMonitor:
+        enabled: false
+      serviceMonitor:
+        enabled: false
+      prometheusRule:
+        enabled: false
+      psp:
+        create: false
+    custom:
+      addresses:
+      - 10.0.1.10-10.0.1.149
+      metallb:
+        prometheus:
+          namespace: prometheus
+        podMonitor:
+          enabled: true
+        serviceMonitor:
+          enabled: true
+        prometheusRule:
+          enabled: false
+        psp:
+          create: false

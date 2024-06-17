@@ -1,0 +1,10 @@
+- name: Deploy certificate bundle
+  hosts: localhost
+  connection: local
+
+  tasks:
+  - kubernetes.core.k8s:
+      state: present
+      template: ../roles/homelab/templates/secret-ca-bundle.yaml.j2
+    vars:
+      namespace: "{{ namespace }}"

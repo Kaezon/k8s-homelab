@@ -1,0 +1,7 @@
+git+https://github.com/r7l/python-gitea-api.git@1.17.3
+GitPython
+python-keycloak==1.9.1
+requests
+kubernetes
+pyyaml
+urllib3

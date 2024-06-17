@@ -1,0 +1,39 @@
+---
+- name: Remove Longhorn from cluster
+  kubernetes.core.helm:
+    name: longhorn
+    state: absent
+    wait: true
+  tags:
+  - never
+  - remove-microk8s
+
+- name: Purge Longhorn data
+  become: true
+  file:
+    path: /var/snap/microk8s/common/storage/k8s/longhorn/
+    state: {{ item }}
+  with_items:
+    - absent
+    - directory
+  tags:
+  - never
+  - remove-microk8s
+
+- name: Unmount storage drive
+  become: true
+  ansible.posix.mount:
+    path: /var/snap/microk8s/common/storage
+    state: unmounted
+  tags:
+  - never
+  - remove-microk8s
+
+- name: Remove Microk8s snap
+  become: true
+  snap:
+    name: microk8s
+    state: absent
+  tags:
+  - never
+  - remove-microk8s

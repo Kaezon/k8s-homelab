@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coredns
+  namespace: {{ .Release.Namespace  }}
+  labels:
+    app: coredns
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: coredns
+  template:
+    metadata:
+      labels:
+        app: coredns
+    spec:
+      containers:
+      - name: coredns
+        image: kaezon/coredns:latest
+        imagePullPolicy: Always
+        args: ['-conf','/etc/coredns/Corefile','-dns.port','30053']
+        ports:
+        - containerPort: 30053
+          protocol: TCP
+        - containerPort: 30053
+          protocol: UDP
+        securityContext:
+          runAsUser: 1000
+          runAsGroup: 1000
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+        volumeMounts:
+        - name: config
+          mountPath: '/etc/coredns'
+          readOnly: true
+      serviceAccountName: coredns-chimera
+      volumes:
+      - name: config
+        configMap:
+          name: coredns-config

@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argocd-ingress
+  annotations:
+    cert-manager.io/cluster-issuer: private-ica
+    cert-manager.io/common-name: argocd-tls
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - argocd.k8s.local
+    secretName: argocd-tls
+  rules:
+  - host: argocd.k8s.local
+    http:
+      paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: argocd-server
+              port:
+                number: 80

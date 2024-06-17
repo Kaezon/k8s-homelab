@@ -1,0 +1,54 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: keycloak
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: core-deployment
+  source:
+    repoURL: "{{ .Values.controlRepo }}"
+    targetRevision: "{{ .Values.targetRevision }}"
+    path: applications/keycloak
+
+    helm:
+      values: |
+        keycloak:
+{{ toYaml .Values.keycloak | indent 10 }}
+      valueFiles:
+      - values.yaml
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ .Values.projectNamespace }}
+
+  ignoreDifferences:
+    - group: "*"
+      kind: Secret
+      name: keycloak
+      namespace: core-deployment
+      jsonPointers:
+      - /data/management-password
+    - group: "*"
+      kind: Secret
+      name: keycloak-postgresql
+      namespace: core-deployment
+      jsonPointers:
+      - /data/postgresql-postgres-password
+    - group: "*"
+      kind: StatefulSet
+      name: keycloak
+      namespace: core-deployment
+      jsonPointers:
+      - /spec/template/metadata/annotations/checksum~1secrets  # '~1' is an escaped '/'
+
+  syncPolicy:
+    retry:
+      limit: 1
+      backoff:
+        duration: 5m
+        factor: 2
+        maxDuration: 30m
+    syncOptions:
+    - CreateNamespace=true

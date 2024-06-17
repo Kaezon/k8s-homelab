@@ -1,0 +1,21 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- https://github.com/argoproj/argo-cd/manifests/cluster-install?ref=v2.10.4
+- namespace.yaml
+- ingress.yaml
+- application-master.yaml
+- project.yaml
+- repositories.yaml
+
+patchesStrategicMerge:
+- patches/configmap-argocd-cmd-params-cm.yaml
+- patches/configmap-argocd-rbac.yaml
+- patches/configmap-argocd-ssh-known-hosts.yaml
+- patches/configmap-argocd.yaml
+- patches/deployment-argocd-repo-server.yaml
+- patches/configmap-argocd-tls.yaml
+- patches/deployment-argocd-server.yaml
+
+namespace: argocd

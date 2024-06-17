@@ -1,0 +1,37 @@
+---
+- name: Install microk8s role locally
+  hosts: localhost
+  connection: local
+
+  tasks:
+  - name: Remove Longhorn from cluster
+    kubernetes.core.helm:
+      name: longhorn
+      release_namespace: longhorn
+      state: absent
+      wait: true
+
+  - name: Purge Longhorn data
+    become: true
+    file:
+      path: /var/snap/microk8s/common/storage/k8s/longhorn/
+      state: "{{ item }}"
+    with_items:
+      - absent
+      - directory
+
+  - name: Wait for 10 seconds
+    wait_for:
+      timeout: 10
+
+  - name: Unmount storage drive
+    become: true
+    ansible.posix.mount:
+      path: /var/snap/microk8s/common/storage
+      state: unmounted
+
+  - name: Remove Microk8s snap
+    become: true
+    snap:
+      name: microk8s
+      state: absent

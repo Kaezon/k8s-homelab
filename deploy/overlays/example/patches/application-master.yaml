@@ -1,0 +1,53 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: master-app
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: core-deployment
+  source:
+    repoURL: https://git.k8s.chimera/kaezon/k8s-control
+    targetRevision: master
+    path: applications/master-app
+
+    helm:
+      values: |
+        controlRepo: https://git.k8s.chimera/kaezon/k8s-control.git
+        projectNamespace: core-deployment
+        targetRevision: master
+
+        gitea:
+          admin:
+            username: changeme
+            password: changeme
+            email: changeme
+
+        longhorn:
+          aws: {}
+          backupTarget: ""
+          defaultDataPath: ""
+          encryptionPassphrase: changeme
+
+        oauth2Proxy:
+          clientSecret: "changeme"
+          cookieSecret: "changeme"
+
+        certificateAuthority:
+          caBundle: |-
+            -----BEGIN CERTIFICATE-----
+            ...
+            -----END CERTIFICATE-----
+          caKey: |-
+            -----BEGIN PRIVATE KEY-----
+            ...
+            -----END PRIVATE KEY-----
+
+        velero:
+          provider: ""
+          secretContents: {}
+
+      valueFiles:
+      - values.yaml
