@@ -1,6 +1,7 @@
-# Air-gapped K8s Homelab
+# K8s Homelab
 
-This project attepts to lay out a complete k8s deployment which is capable of operating in an air gapped environment.
+This project attepts to lay out a repeatable k8s deployment.
+The motivation is primarily personal education.
 To this end, the deployment provides the following capabilities:
 
 - Continuous Delivery
@@ -17,7 +18,36 @@ To this end, the deployment provides the following capabilities:
 
 ## Project Architecture
 
-TODO
+```
+.
+├── ansible
+│   ├── playbooks
+│   └── roles
+├── applications
+│   ├── cert-manager
+│   ├── coredns
+│   ├── external-snapshotter
+│   ├── gitea
+│   ├── heimdall
+│   ├── ingress-nginx
+│   ├── keycloak
+│   ├── kube-prometheus-stack
+│   ├── longhorn
+│   ├── master-app
+│   └── metallb
+└── deploy
+    ├── base
+    ├── bootstrap
+    ├── overlays
+    └── utility-manifests
+```
+
+- ansible
+  - Contains a role and playbooks to simplify install and removal of the homelab deployment.
+- applications
+  - Collection of ArgoCD applications which will be deployed in the deployment's second stage.
+- deploy
+  - Contains Kustomize manifests to deploy argocd as well as depricated deployment resources.
 
 ## Building a cluster
 
@@ -26,9 +56,8 @@ TODO
 ### Boostrapping
 
 ```
-# Run bootstrapping script
-# Only arg is the name of the namespace you want to create and deploy to
-deploy/bootstrap/bootstrap.sh core-deployment
+# Run local Ansible role
+ansible-playbook ansible/playbooks/install.yaml -K
 ```
 
 TODO: Proccess of creating overlay(s) in seperate repo to keep secrets seperate.
