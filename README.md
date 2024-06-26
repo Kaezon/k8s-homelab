@@ -55,6 +55,9 @@ TODO
 
 ### Boostrapping
 
+First, it is important to prepare a values file for the role to use.
+The best methhod is to copy the vars file at `ansible/roles/homelab/vars/main.yaml` to a safe location.
+
 ```
 # Run local Ansible role
 ansible-playbook ansible/playbooks/install.yaml -K
@@ -94,3 +97,30 @@ velero backup create my-backup-name --exclude-resources persistentvolumes,persis
 # Do a cluster boostrap first
 velero restore create --from-backup my-backup-name
 ```
+
+### Ansible Variables Reference
+
+| Variable | Description | Type | Default |
+| -------- | ----------- | ---- | ------- | 
+| domain | The domain which CoreDNS will serve internal services on | string | k8s.local |
+| deployment_namespace_name | The namespace which wil be created for this deployment | string | core-deployment |
+| projectPath | The path in which the project resides | string | /path/to/k8s-core-deployment |
+| cert_manager.cert | Certificate bundle Cert Manager will use as its CA | string | ~ |
+| cert_manager.key | Private key for Cert Manager's CA | string | ~ |
+|  |  |  |
+| gitea.email | Email for the Gitea user | string | ~ |
+| gitea.password | Password for the Gitea user | string | ~ |
+| gitea.pushRemote | Whether or not to push the project upon completion | bool | True |
+| gitea.remoteName | Name of the git remote to be created | string | homelab |
+| gitea.repoName | Name of the git repo to be created | string | k8s-control |
+| gitea.username | Gitea username | string | ~ |
+|  |  |  |
+|  |  |  |
+|  |  |  |
+|  |  |  |
+|  |  |  |
+|  |  |  |
+|  |  |  |
+|  |  |  |
+|  |  |  |
+|  |  |  |
